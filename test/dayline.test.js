@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readSessions } from '../src/sessions.js';
+import { readSessions, shellWrites } from '../src/sessions.js';
 import { digest, localDay } from '../src/digest.js';
 import { render } from '../src/render.js';
 import { redact } from '../src/redact.js';
@@ -113,4 +113,15 @@ test('summarize explains itself when no model is running', async () => {
 
 test('localDay gives a calendar day', () => {
   assert.match(localDay(Date.now()), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+const bash = (min, command) => ({ type: 'assistant', timestamp: at(min), message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command } }] } });
+
+test('files written by shell commands are found, as a labelled guess', () => {
+  assert.deepEqual(shellWrites("cat > src/a.js <<'EOF'\nx\nEOF\necho hi >> notes.md && cp a.txt out/b.txt && ls | tee log.txt && echo x > /dev/null").sort(), ['log.txt', 'notes.md', 'out/b.txt', 'src/a.js']);
+  const root = fixture({ p: [user(0, 'go', { cwd: '/work/app' }), edit(1, '/work/app/a.js'), bash(2, 'cat > /work/app/a.js <<EOF\nx\nEOF'), bash(3, 'echo 1 > /work/app/new.txt')] });
+  const p = digest(readSessions(root), { from: '2026-10-06', withGit: false }).projects[0];
+  assert.equal(p.filesChanged, 1);
+  assert.equal(p.shellFiles, 1); // a.js is already counted, new.txt is not
+  assert.match(render({ from: '2026-10-06', to: '2026-10-06', projects: [p], totalMinutes: p.activeMinutes }), /\+1 written by shell commands, a guess/);
 });

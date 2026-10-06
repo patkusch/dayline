@@ -19,6 +19,21 @@ function humanText(rec) {
   return text;
 }
 
+// Files a shell command writes to, best guess: `> file`, `>> file`, `tee file`, `cp/mv ... file`.
+export function shellWrites(cmd) {
+  const out = new Set();
+  const clean = (p) => p.replace(/^['"]|['"]$/g, '');
+  for (const m of cmd.matchAll(/(?:^|[\s;&|])>>?\s*(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
+  for (const m of cmd.matchAll(/\btee\s+(?:-a\s+)?(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
+  for (const m of cmd.matchAll(/\b(?:cp|mv)\s+(?:-\w+\s+)*\S+\s+(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
+  return [...out].filter((f) => !f.startsWith('/dev/'));
+}
+
+function shellFiles(rec) {
+  if (rec.type !== 'assistant' || !Array.isArray(rec.message?.content)) return [];
+  return rec.message.content.filter((b) => b.type === 'tool_use' && b.name === 'Bash' && b.input?.command).flatMap((b) => shellWrites(b.input.command));
+}
+
 function touched(rec) {
   if (rec.type !== 'assistant' || !Array.isArray(rec.message?.content)) return [];
   return rec.message.content
@@ -46,7 +61,7 @@ export function readSessions(root = defaultRoot()) {
         const t = Date.parse(rec.timestamp);
         if (Number.isNaN(t)) continue;
         const prompt = humanText(rec);
-        events.push({ t, prompt, files: touched(rec) });
+        events.push({ t, prompt, files: touched(rec), shell: shellFiles(rec) });
       }
       if (events.length) {
         events.sort((a, b) => a.t - b.t);

@@ -52,7 +52,7 @@ The model is told to use only what the notes say. Read the result before you sen
 
 ## Honest limits
 
-- Files changed counts only files Claude Code edited with its own edit tools. Files created through shell commands are not counted.
+- Files changed counts files Claude Code edited with its own edit tools. Files written by shell commands (`cat > file`, `tee`, `cp`) are added as a separate, labelled guess: the command text is read, not the disk.
 - Time is an estimate from timestamps. It cannot know you were thinking.
 - It reads Claude Code's current file format. If that format changes, Dayline needs updating; the tests pin the format it expects.
 - The model summary was tested against a fake local server, not a real model.

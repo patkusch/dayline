@@ -27,13 +27,14 @@ export function digest(sessions, { from, to = from, author, withGit = true, maxP
     const events = s.events.filter((e) => e.t >= start && e.t < end);
     if (!events.length) continue;
     const name = basename(s.cwd);
-    const p = byProject.get(s.cwd) || { name, cwd: s.cwd, sessions: 0, times: [], prompts: [], files: new Set(), titles: [] };
+    const p = byProject.get(s.cwd) || { name, cwd: s.cwd, sessions: 0, times: [], prompts: [], files: new Set(), shell: new Set(), titles: [] };
     p.sessions++;
     if (s.title) p.titles.push(s.title);
     for (const e of events) {
       p.times.push(e.t);
       if (e.prompt) p.prompts.push({ t: e.t, text: e.prompt });
       e.files.forEach((f) => p.files.add(f));
+      e.shell.forEach((f) => p.shell.add(f));
     }
     byProject.set(s.cwd, p);
   }
@@ -51,6 +52,7 @@ export function digest(sessions, { from, to = from, author, withGit = true, maxP
       requests: p.prompts.slice(0, maxPrompts).map((q) => redact(q.text.replace(/\s+/g, ' ').slice(0, 160))),
       requestCount: p.prompts.length,
       filesChanged: p.files.size,
+      shellFiles: [...p.shell].filter((f) => !p.files.has(f)).length,
       commits: withGit ? commits(p.cwd, start, end, author).map((c) => ({ ...c, subject: redact(c.subject) })) : [],
     };
   }).sort((a, b) => b.activeMinutes - a.activeMinutes);
