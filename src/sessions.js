@@ -20,14 +20,16 @@ function humanText(rec) {
 }
 
 // Files a shell command writes to, best guess: `> file`, `>> file`, `tee file`, `cp/mv ... file`.
+const FILE_ENDING = /^[A-Za-z_~./][\w./-]*\.(?:js|mjs|cjs|jsx|ts|tsx|json|jsonl|md|txt|html|css|ya?ml|toml|py|sh|csv|tsv|xml|tmx|svg|png|jpe?g|pdf|log|env|cfg|ini|lock|stl|glb)$/;
+
 export function shellWrites(cmd) {
   const out = new Set();
   const clean = (p) => p.replace(/^['"]|['"]$/g, '');
   for (const m of cmd.matchAll(/(?:^|[\s;&|])>>?\s*(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
   for (const m of cmd.matchAll(/\btee\s+(?:-a\s+)?(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
   for (const m of cmd.matchAll(/\b(?:cp|mv)\s+(?:-\w+\s+)*\S+\s+(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
-  // A real file name starts with a letter, dot, slash or ~ and has a word as its ending. This drops "> 0.5" and "> 12.5%".
-  return [...out].filter((f) => !f.startsWith('/dev/') && /^[A-Za-z_~./][\w./-]*\.[A-Za-z]\w*$/.test(f));
+  // Only common file endings count. This drops "> 0.5" and property reads such as "x > def.max".
+  return [...out].filter((f) => !f.startsWith('/dev/') && FILE_ENDING.test(f));
 }
 
 function shellFiles(rec) {
