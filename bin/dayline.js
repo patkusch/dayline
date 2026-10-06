@@ -38,6 +38,15 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { console.error('Use a day like 2026-10-0
 
 try {
   const sessions = readSessions(opt.root || defaultRoot());
+  if (opt.week && !opt.json) {
+    const days = [];
+    for (let n = 6; n >= 0; n--) days.push(shift(today, -n));
+    const parts = days.map((day) => render(digest(sessions, { from: day, author: opt.author, withGit: !opt.noGit, project: opt.project })));
+    const all = digest(sessions, { from, to, author: opt.author, withGit: false, project: opt.project });
+    const head = `# Week ${from} to ${to}\n\n${all.projects.length} project${all.projects.length === 1 ? '' : 's'}, about ${Math.floor(all.totalMinutes / 60)} h ${all.totalMinutes % 60} min of active work.\n`;
+    console.log([head, ...parts.filter((t) => !/Nothing recorded/.test(t)).map((t) => t.replace(/^# /, '### '))].join('\n'));
+    process.exit(0);
+  }
   const d = digest(sessions, { from, to, author: opt.author, withGit: !opt.noGit, project: opt.project });
   if (opt.json) { console.log(JSON.stringify(d, null, 2)); process.exit(0); }
   const text = render(d);

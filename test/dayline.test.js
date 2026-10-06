@@ -140,3 +140,14 @@ test('token use is added up once per reply, even when a reply is split over seve
   const p = digest(readSessions(root), { from: '2026-10-06', withGit: false }).projects[0];
   assert.equal(p.tokens, 2 * (100 + 400 + 250));
 });
+
+test('--week gives one section per day that had work, under a weekly total', () => {
+  const day = (offset, min) => new Date(Date.now() - offset * 86400000 + min * 60000).toISOString();
+  const rec = (offset, text) => ({ type: 'user', timestamp: day(offset, 0), origin: { kind: 'human' }, cwd: '/w/app', message: { content: text } });
+  const root = fixture({ p: [rec(0, 'today work'), rec(2, 'two days ago'), rec(30, 'long ago')] });
+  const out = execFileSync('node', ['bin/dayline.js', '--week', '--root', root, '--no-git']).toString();
+  assert.match(out, /^# Week /);
+  assert.equal(out.match(/^### /gm).length, 2);
+  assert.match(out, /today work/);
+  assert.doesNotMatch(out, /long ago/);
+});

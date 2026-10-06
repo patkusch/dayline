@@ -4,7 +4,7 @@ Your day, written up for you. Dayline reads the work history Claude Code already
 
 ```bash
 node bin/dayline.js                  # today
-node bin/dayline.js --week           # the last 7 days
+node bin/dayline.js --week           # the last 7 days, one section per day
 node bin/dayline.js --day 2026-10-06 # one day
 ```
 
