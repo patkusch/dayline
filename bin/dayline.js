@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+import { readSessions, defaultRoot } from '../src/sessions.js';
+import { digest, localDay } from '../src/digest.js';
+import { render } from '../src/render.js';
+import { summarize } from '../src/ollama.js';
+
+const args = process.argv.slice(2);
+const opt = {};
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a === '--help' || a === '-h') opt.help = true;
+  else if (a === '--week') opt.week = true;
+  else if (a === '--no-git') opt.noGit = true;
+  else if (a === '--summarize') opt.model = args[++i];
+  else if (['--day', '--root', '--author'].includes(a)) opt[a.slice(2)] = args[++i];
+  else { console.error(`Unknown option ${a}. Try --help.`); process.exit(1); }
+}
+if (opt.help) {
+  console.log(`dayline: your day, written up from Claude Code sessions and git commits
+
+  dayline                     today
+  dayline --day 2026-10-06    one day
+  dayline --week              the last 7 days, today included
+  dayline --author "Name"     only commits by this git author
+  dayline --no-git            leave out commits
+  dayline --summarize MODEL   ask a local Ollama model for a short standup
+  dayline --root DIR          where Claude Code keeps sessions (default ~/.claude/projects)`);
+  process.exit(0);
+}
+const today = localDay(Date.now());
+const shift = (day, n) => localDay(new Date(`${day}T12:00:00`).getTime() + n * 86400000);
+const from = opt.week ? shift(today, -6) : opt.day || today;
+const to = opt.week ? today : opt.day || today;
+if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { console.error('Use a day like 2026-10-06.'); process.exit(1); }
+
+try {
+  const sessions = readSessions(opt.root || defaultRoot());
+  const text = render(digest(sessions, { from, to, author: opt.author, withGit: !opt.noGit }));
+  console.log(opt.model ? await summarize(text, { model: opt.model }) : text);
+} catch (e) {
+  console.error(e.message);
+  process.exit(1);
+}

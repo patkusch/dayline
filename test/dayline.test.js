@@ -1,0 +1,116 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { readSessions } from '../src/sessions.js';
+import { digest, localDay } from '../src/digest.js';
+import { render } from '../src/render.js';
+import { redact } from '../src/redact.js';
+import { summarize } from '../src/ollama.js';
+
+const at = (min) => new Date(2026, 9, 6, 10, min).toISOString(); // 6 Oct 2026, local time
+const user = (min, content, extra = {}) => ({ type: 'user', timestamp: at(min), origin: { kind: 'human' }, message: { role: 'user', content }, ...extra });
+const edit = (min, file) => ({ type: 'assistant', timestamp: at(min), message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Edit', input: { file_path: file } }] } });
+
+function fixture(files) {
+  const root = mkdtempSync(join(tmpdir(), 'dayline-'));
+  for (const [dir, lines] of Object.entries(files)) {
+    mkdirSync(join(root, dir), { recursive: true });
+    writeFileSync(join(root, dir, 's1.jsonl'), lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n'));
+  }
+  return root;
+}
+
+test('real requests are kept, tool results and automatic notices are not', () => {
+  const root = fixture({
+    p1: [
+      { type: 'custom-title', customTitle: 'Fix login' },
+      user(0, 'fix the login bug', { cwd: '/work/app' }),
+      user(1, [{ type: 'tool_result', content: 'ok' }]),
+      user(2, '<task-notification>done</task-notification>'),
+      user(3, 'note', { origin: { kind: 'task-notification' } }),
+      user(4, 'from a helper agent', { isSidechain: true }),
+      user(5, 'and add a test'),
+      '{"type":"user","timestamp":"2026-10-0', // half-written last line
+    ],
+  });
+  const [s] = readSessions(root);
+  assert.equal(s.title, 'Fix login');
+  assert.deepEqual(s.events.filter((e) => e.prompt).map((e) => e.prompt), ['fix the login bug', 'and add a test']);
+});
+
+test('the digest counts active time, files and requests per project, and skips other days', () => {
+  const root = fixture({
+    p1: [user(0, 'start', { cwd: '/work/app' }), edit(5, '/work/app/a.js'), edit(8, '/work/app/a.js'), edit(9, '/work/app/b.js'), user(60, 'after a long break')],
+    p2: [user(0, 'other thing', { cwd: '/work/site' }), { type: 'user', timestamp: new Date(2026, 9, 5, 10).toISOString(), origin: { kind: 'human' }, message: { content: 'yesterday' } }],
+  });
+  const d = digest(readSessions(root), { from: '2026-10-06', withGit: false });
+  const app = d.projects.find((p) => p.name === 'app');
+  assert.equal(app.activeMinutes, 9); // the 51-minute break is not counted
+  assert.equal(app.filesChanged, 2);
+  assert.equal(app.requestCount, 2);
+  const site = d.projects.find((p) => p.name === 'site');
+  assert.equal(site.requestCount, 1); // yesterday's message is left out
+  assert.equal(d.projects[0].name, 'app'); // busiest first
+});
+
+test('commits for the day come from git, and only the right author', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'repo-'));
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { env: { ...process.env, GIT_AUTHOR_DATE: at(30), GIT_COMMITTER_DATE: at(30) } });
+  git('init', '-q');
+  git('-c', 'user.name=Ada', '-c', 'user.email=a@x.io', 'commit', '-q', '--allow-empty', '-m', 'add login');
+  git('-c', 'user.name=Bob', '-c', 'user.email=b@x.io', 'commit', '-q', '--allow-empty', '-m', 'bump deps');
+  const root = fixture({ p: [user(0, 'go', { cwd: repo })] });
+  const all = digest(readSessions(root), { from: '2026-10-06' }).projects[0].commits.map((c) => c.subject).sort();
+  assert.deepEqual(all, ['add login', 'bump deps']);
+  const ada = digest(readSessions(root), { from: '2026-10-06', author: 'Ada' }).projects[0].commits.map((c) => c.subject);
+  assert.deepEqual(ada, ['add login']);
+});
+
+test('a folder that no longer exists does not break the digest', () => {
+  const root = fixture({ p: [user(0, 'go', { cwd: '/no/such/folder' })] });
+  assert.equal(digest(readSessions(root), { from: '2026-10-06' }).projects[0].commits.length, 0);
+});
+
+test('secrets are hidden in requests and commit subjects', () => {
+  const key = 'sk-' + 'a'.repeat(30);
+  assert.equal(redact(`use ${key} now`), 'use [hidden] now');
+  assert.match(redact('password=hunter2 ok'), /password=\[hidden\]/);
+  assert.match(redact('ghp_' + 'b'.repeat(30)), /\[hidden\]/);
+  const root = fixture({ p: [user(0, `deploy with ${key}`, { cwd: '/x/app' })] });
+  const text = render(digest(readSessions(root), { from: '2026-10-06', withGit: false }));
+  assert.ok(!text.includes(key));
+});
+
+test('an empty day says so', () => {
+  assert.match(render(digest([], { from: '2026-10-06' })), /Nothing recorded/);
+});
+
+test('a missing sessions folder gives an empty list', () => {
+  assert.deepEqual(readSessions('/no/such/root'), []);
+});
+
+test('summarize sends the digest to the local model and returns its answer', async () => {
+  let seen;
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => { seen = JSON.parse(body); res.end(JSON.stringify({ response: ' Done: fixed login. ' })); });
+  }).listen(0);
+  const host = `http://localhost:${server.address().port}`;
+  assert.equal(await summarize('# notes', { model: 'tiny', host }), 'Done: fixed login.');
+  assert.equal(seen.model, 'tiny');
+  assert.match(seen.prompt, /do not invent/);
+  server.close();
+});
+
+test('summarize explains itself when no model is running', async () => {
+  await assert.rejects(summarize('x', { model: 'm', host: 'http://localhost:1' }), /Could not reach a model/);
+});
+
+test('localDay gives a calendar day', () => {
+  assert.match(localDay(Date.now()), /^\d{4}-\d{2}-\d{2}$/);
+});
