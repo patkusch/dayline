@@ -28,7 +28,7 @@ export function digest(sessions, { from, to = from, author, withGit = true, maxP
     const events = s.events.filter((e) => e.t >= start && e.t < end);
     if (!events.length) continue;
     const name = basename(s.cwd);
-    const p = byProject.get(s.cwd) || { name, cwd: s.cwd, sessions: 0, times: [], prompts: [], files: new Set(), shell: new Set(), titles: [] };
+    const p = byProject.get(s.cwd) || { name, cwd: s.cwd, sessions: 0, times: [], prompts: [], files: new Set(), shell: new Set(), tokens: 0, titles: [] };
     p.sessions++;
     if (s.title) p.titles.push(s.title);
     for (const e of events) {
@@ -36,6 +36,7 @@ export function digest(sessions, { from, to = from, author, withGit = true, maxP
       if (e.prompt) p.prompts.push({ t: e.t, text: e.prompt });
       e.files.forEach((f) => p.files.add(f));
       e.shell.forEach((f) => p.shell.add(f));
+      if (e.tokens) p.tokens += e.tokens.input + e.tokens.output;
     }
     byProject.set(s.cwd, p);
   }
@@ -52,6 +53,7 @@ export function digest(sessions, { from, to = from, author, withGit = true, maxP
       activeMinutes: Math.round(activeMs(p.times) / 60000),
       requests: p.prompts.slice(0, maxPrompts).map((q) => redact(q.text.replace(/\s+/g, ' ').slice(0, 160))),
       requestCount: p.prompts.length,
+      tokens: p.tokens,
       filesChanged: p.files.size,
       shellFiles: [...p.shell].filter((f) => !p.files.has(f)).length,
       commits: withGit ? commits(p.cwd, start, end, author).map((c) => ({ ...c, subject: redact(c.subject) })) : [],

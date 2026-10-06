@@ -12,7 +12,7 @@ It needs Node 20 or newer. No install, no account, no key. Nothing leaves your c
 
 ## What you get
 
-For each project you worked on: how long you were active, when you started and stopped, how many sessions, how many files were changed, the commits you made, and what you asked for. Time counts only stretches of work; a gap of more than 15 minutes is treated as a break.
+For each project you worked on: how long you were active, when you started and stopped, how many sessions, how many tokens the AI used, how many files were changed, the commits you made, and what you asked for. Time counts only stretches of work; a gap of more than 15 minutes is treated as a break.
 
 ```
 ## my-app

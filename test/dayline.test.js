@@ -133,3 +133,10 @@ test('--project keeps only matching folders, and --json gives data', () => {
   const out = execFileSync('node', ['bin/dayline.js', '--day', '2026-10-06', '--root', root, '--no-git', '--json', '--project', 'site']).toString();
   assert.deepEqual(JSON.parse(out).projects.map((p) => p.name), ['website']);
 });
+
+test('token use is added up once per reply, even when a reply is split over several records', () => {
+  const reply = (min, id, tools) => ({ type: 'assistant', timestamp: at(min), message: { id, role: 'assistant', content: tools, usage: { input_tokens: 100, cache_creation_input_tokens: 400, output_tokens: 250 } } });
+  const root = fixture({ p: [user(0, 'go', { cwd: '/w/app' }), reply(1, 'm1', []), reply(1, 'm1', []), reply(2, 'm2', [])] });
+  const p = digest(readSessions(root), { from: '2026-10-06', withGit: false }).projects[0];
+  assert.equal(p.tokens, 2 * (100 + 400 + 250));
+});

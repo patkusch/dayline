@@ -7,7 +7,7 @@ export function render(d) {
   const out = [`# ${title}`, '', `${d.projects.length} project${d.projects.length === 1 ? '' : 's'}, about ${dur(d.totalMinutes)} of active work.`, ''];
   for (const p of d.projects) {
     out.push(`## ${p.name}`);
-    out.push(`${dur(p.activeMinutes)} between ${hm(p.firstAt)} and ${hm(p.lastAt)} · ${p.sessions} session${p.sessions === 1 ? '' : 's'} · ${p.filesChanged} file${p.filesChanged === 1 ? '' : 's'} changed${p.shellFiles ? ` (+${p.shellFiles} written by shell commands, a guess)` : ''}`);
+    out.push(`${dur(p.activeMinutes)} between ${hm(p.firstAt)} and ${hm(p.lastAt)} · ${p.sessions} session${p.sessions === 1 ? '' : 's'}${p.tokens ? ` · ${(p.tokens / 1000).toFixed(p.tokens < 10000 ? 1 : 0)}k tokens` : ''} · ${p.filesChanged} file${p.filesChanged === 1 ? '' : 's'} changed${p.shellFiles ? ` (+${p.shellFiles} written by shell commands, a guess)` : ''}`);
     if (p.titles.length) out.push(`Sessions: ${p.titles.join('; ')}`);
     if (p.commits.length) {
       out.push('', 'Commits:');

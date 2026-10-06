@@ -42,6 +42,11 @@ function touched(rec) {
     .filter(Boolean);
 }
 
+const tokensOf = (rec) => {
+  const u = rec.type === 'assistant' && rec.message?.usage;
+  return u ? { input: (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0), output: u.output_tokens || 0 } : null;
+};
+
 export function readSessions(root = defaultRoot()) {
   if (!existsSync(root)) return [];
   const sessions = [];
@@ -51,6 +56,7 @@ export function readSessions(root = defaultRoot()) {
       if (!f.endsWith('.jsonl')) continue;
       const events = [];
       let cwd = null, title = null;
+      const seen = new Set(); // one reply can be written as several records; count its usage once
       for (const line of readFileSync(join(root, dir.name, f), 'utf8').split('\n')) {
         if (!line) continue;
         let rec;
@@ -61,7 +67,10 @@ export function readSessions(root = defaultRoot()) {
         const t = Date.parse(rec.timestamp);
         if (Number.isNaN(t)) continue;
         const prompt = humanText(rec);
-        events.push({ t, prompt, files: touched(rec), shell: shellFiles(rec) });
+        let tokens = null;
+        const id = rec.message?.id;
+        if (!id || !seen.has(id)) { tokens = tokensOf(rec); if (id) seen.add(id); }
+        events.push({ t, prompt, files: touched(rec), shell: shellFiles(rec), tokens });
       }
       if (events.length) {
         events.sort((a, b) => a.t - b.t);
