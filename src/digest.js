@@ -19,11 +19,12 @@ function activeMs(times) {
   return total;
 }
 
-export function digest(sessions, { from, to = from, author, withGit = true, maxPrompts = 6 } = {}) {
+export function digest(sessions, { from, to = from, author, withGit = true, maxPrompts = 6, project } = {}) {
   const [start] = dayRange(from);
   const [, end] = dayRange(to);
   const byProject = new Map();
   for (const s of sessions) {
+    if (project && !basename(s.cwd).toLowerCase().includes(project.toLowerCase())) continue;
     const events = s.events.filter((e) => e.t >= start && e.t < end);
     if (!events.length) continue;
     const name = basename(s.cwd);

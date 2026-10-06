@@ -11,8 +11,9 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--help' || a === '-h') opt.help = true;
   else if (a === '--week') opt.week = true;
   else if (a === '--no-git') opt.noGit = true;
+  else if (a === '--json') opt.json = true;
   else if (a === '--summarize') opt.model = args[++i];
-  else if (['--day', '--root', '--author'].includes(a)) opt[a.slice(2)] = args[++i];
+  else if (['--day', '--root', '--author', '--project'].includes(a)) opt[a.slice(2)] = args[++i];
   else { console.error(`Unknown option ${a}. Try --help.`); process.exit(1); }
 }
 if (opt.help) {
@@ -22,6 +23,8 @@ if (opt.help) {
   dayline --day 2026-10-06    one day
   dayline --week              the last 7 days, today included
   dayline --author "Name"     only commits by this git author
+  dayline --project NAME      only projects whose folder name contains NAME
+  dayline --json              machine-readable output
   dayline --no-git            leave out commits
   dayline --summarize MODEL   ask a local Ollama model for a short standup
   dayline --root DIR          where Claude Code keeps sessions (default ~/.claude/projects)`);
@@ -35,7 +38,9 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) { console.error('Use a day like 2026-10-0
 
 try {
   const sessions = readSessions(opt.root || defaultRoot());
-  const text = render(digest(sessions, { from, to, author: opt.author, withGit: !opt.noGit }));
+  const d = digest(sessions, { from, to, author: opt.author, withGit: !opt.noGit, project: opt.project });
+  if (opt.json) { console.log(JSON.stringify(d, null, 2)); process.exit(0); }
+  const text = render(d);
   console.log(opt.model ? await summarize(text, { model: opt.model }) : text);
 } catch (e) {
   console.error(e.message);

@@ -41,6 +41,8 @@ The model is told to use only what the notes say. Read the result before you sen
 | Option | What it does |
 |---|---|
 | `--author "Name"` | only your commits, when a repo has other people |
+| `--project NAME` | only projects whose folder name contains NAME |
+| `--json` | machine-readable output, for scripts |
 | `--no-git` | leave out commits |
 | `--root DIR` | where Claude Code keeps sessions (default `~/.claude/projects`) |
 

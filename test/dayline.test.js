@@ -125,3 +125,11 @@ test('files written by shell commands are found, as a labelled guess', () => {
   assert.equal(p.shellFiles, 1); // a.js is already counted, new.txt is not
   assert.match(render({ from: '2026-10-06', to: '2026-10-06', projects: [p], totalMinutes: p.activeMinutes }), /\+1 written by shell commands, a guess/);
 });
+
+test('--project keeps only matching folders, and --json gives data', () => {
+  const root = fixture({ a: [user(0, 'x', { cwd: '/w/my-app' })], b: [user(0, 'y', { cwd: '/w/website' })] });
+  const d = digest(readSessions(root), { from: '2026-10-06', withGit: false, project: 'APP' });
+  assert.deepEqual(d.projects.map((p) => p.name), ['my-app']);
+  const out = execFileSync('node', ['bin/dayline.js', '--day', '2026-10-06', '--root', root, '--no-git', '--json', '--project', 'site']).toString();
+  assert.deepEqual(JSON.parse(out).projects.map((p) => p.name), ['website']);
+});
