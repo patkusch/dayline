@@ -26,7 +26,8 @@ export function shellWrites(cmd) {
   for (const m of cmd.matchAll(/(?:^|[\s;&|])>>?\s*(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
   for (const m of cmd.matchAll(/\btee\s+(?:-a\s+)?(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
   for (const m of cmd.matchAll(/\b(?:cp|mv)\s+(?:-\w+\s+)*\S+\s+(['"]?[~\w./-]+\.\w+['"]?)/g)) out.add(clean(m[1]));
-  return [...out].filter((f) => !f.startsWith('/dev/'));
+  // A real file name starts with a letter, dot, slash or ~ and has a word as its ending. This drops "> 0.5" and "> 12.5%".
+  return [...out].filter((f) => !f.startsWith('/dev/') && /^[A-Za-z_~./][\w./-]*\.[A-Za-z]\w*$/.test(f));
 }
 
 function shellFiles(rec) {

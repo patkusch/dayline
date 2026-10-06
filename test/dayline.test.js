@@ -151,3 +151,7 @@ test('--week gives one section per day that had work, under a weekly total', () 
   assert.match(out, /today work/);
   assert.doesNotMatch(out, /long ago/);
 });
+
+test('comparisons and numbers in code are not mistaken for files', () => {
+  assert.deepEqual(shellWrites('python3 -c "print(1 if x > 0.5 else 2)"; node -e "a > b.c"; echo ok > real.txt'), ['real.txt']);
+});
