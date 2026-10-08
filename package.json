@@ -1,6 +1,10 @@
 {
   "name": "dayline",
   "version": "0.1.0",
+  "author": "patkusch",
+  "repository": { "type": "git", "url": "git+https://github.com/patkusch/dayline.git" },
+  "homepage": "https://github.com/patkusch/dayline#readme",
+  "bugs": { "url": "https://github.com/patkusch/dayline/issues" },
   "description": "Your day, written up from your Claude Code sessions and git commits. Runs on your machine.",
   "type": "module",
   "bin": { "dayline": "bin/dayline.js" },
