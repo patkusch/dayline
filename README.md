@@ -1,5 +1,7 @@
 # Dayline
 
+[![ci](https://github.com/patkusch/dayline/actions/workflows/ci.yml/badge.svg)](https://github.com/patkusch/dayline/actions/workflows/ci.yml)
+
 Your day, written up for you. Dayline reads the work history Claude Code already keeps on your computer, adds your git commits, and prints a short standup or weekly recap.
 
 ```bash
