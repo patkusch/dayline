@@ -85,6 +85,31 @@ test('secrets are hidden in requests and commit subjects', () => {
   assert.ok(!text.includes(key));
 });
 
+test('every kind of key the redactor knows about is hidden', () => {
+  const cases = {
+    'a fine-grained GitHub token': 'github_pat_' + 'A1b2'.repeat(8),
+    'an AWS access key': 'AKIA' + 'ABCDEFGHIJKLMNOP',
+    'a Slack token': 'xoxb-' + '1234567890-abcdef',
+    'a JSON web token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r',
+  };
+  for (const [name, secret] of Object.entries(cases)) {
+    const out = redact(`before ${secret} after`);
+    assert.equal(out, 'before [hidden] after', name);
+  }
+});
+
+test('named secrets keep their name and lose their value', () => {
+  assert.equal(redact('secret: abc123'), 'secret=[hidden]');
+  assert.equal(redact('API_KEY=abc123'), 'API_KEY=[hidden]');
+  assert.match(redact('api-key = abc123'), /^api-key\s*=\[hidden\]$/);
+  assert.equal(redact('Token=abc123 and more'), 'Token=[hidden] and more');
+});
+
+test('ordinary text is left alone', () => {
+  const text = 'Fix the sk-learn import, rename token_count and tidy the password form';
+  assert.equal(redact(text), text);
+});
+
 test('an empty day says so', () => {
   assert.match(render(digest([], { from: '2026-10-06' })), /Nothing recorded/);
 });
