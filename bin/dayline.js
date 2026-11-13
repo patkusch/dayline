@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { readSessions, defaultRoot } from '../src/sessions.js';
 import { digest, localDay } from '../src/digest.js';
 import { render } from '../src/render.js';
@@ -9,6 +10,10 @@ const opt = {};
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--help' || a === '-h') opt.help = true;
+  else if (a === '--version') {
+    console.log(`dayline ${JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version}`);
+    process.exit(0);
+  }
   else if (a === '--week') opt.week = true;
   else if (a === '--no-git') opt.noGit = true;
   else if (a === '--json') opt.json = true;
