@@ -9,3 +9,15 @@ test('--version prints the name and the number from package.json, then stops', (
   assert.equal(r.status, 0);
   assert.equal(r.stdout.trim(), `dayline ${want}`);
 });
+
+test('an unknown option is refused with a hint, not ignored', () => {
+  const r = spawnSync('node', ['bin/dayline.js', '--nope'], { encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Unknown option --nope\. Try --help\./);
+});
+
+test('--help exits cleanly and prints the usage', () => {
+  const r = spawnSync('node', ['bin/dayline.js', '--help'], { encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /dayline/);
+});
