@@ -72,3 +72,7 @@ Covers: which messages count as yours, active-time maths, per-day filtering, com
 ## Licence
 
 MIT
+
+---
+
+[Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
